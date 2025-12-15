@@ -1,0 +1,5 @@
+# Generate OMR sheet
+python generate.py
+
+# Evaluate filled sheet
+python evaluate.py --image your_filled_sheet.jpg --key answer_key.json

@@ -1,125 +1,387 @@
+"""
+Generate OMR Sheet with Rectangular Section Boxes
+Layout similar to the reference NAT exam sheet with:
+- Section 1 (Math): Q1-13, 4 options, 3 columns
+- Section 2 (Critical Thinking): Q14-27, 4 options, 3 columns  
+- Section 3 (Pyschometric): Q28-71, 5 options, 3 columns
+Each section enclosed in a rectangular border
+"""
+
 import cv2
 import numpy as np
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
+from reportlab.lib.colors import HexColor
 import fitz  # PyMuPDF
-import os
+import math
 
-def draw_omr_sheet(filename="omr_sheet.pdf", sections=[25, 18, 17]):
-    # PDF Setup
+# Section Configuration - Updated layout
+# Section 1: Pyschometric - 25 questions (4 options A-D)
+# Section 2: Aptitude - 18 questions (4 options A-D)
+# Section 3: Math - 17 questions (4 options A-D)
+# Total: 60 questions
+
+SECTIONS_CONFIG = [
+    {
+        "name": "Section: 1 (Pyschometric)",
+        "start_q": 1,
+        "end_q": 25,
+        "options": ["A", "B", "C", "D"],
+        "columns": 3,
+        "questions_per_col": [9, 8, 8]  # Q1-9, Q10-17, Q18-25
+    },
+    {
+        "name": "Section: 2 (Aptitude)",
+        "start_q": 26,
+        "end_q": 43,
+        "options": ["A", "B", "C", "D"],
+        "columns": 3,
+        "questions_per_col": [6, 6, 6]  # Q26-31, Q32-37, Q38-43
+    },
+    {
+        "name": "Section: 3 (Math)",
+        "start_q": 44,
+        "end_q": 60,
+        "options": ["A", "B", "C", "D"],
+        "columns": 3,
+        "questions_per_col": [6, 6, 5]  # Q44-49, Q50-55, Q56-60
+    }
+]
+
+# Colors - All black for better scanning
+BORDER_COLOR = colors.black
+TEXT_COLOR = colors.black
+
+
+def draw_omr_sheet_sectioned(filename="omr_sheet_sectioned.pdf"):
+    """Generate OMR sheet with sections in rectangular boxes"""
     c = canvas.Canvas(filename, pagesize=A4)
     width, height = A4
     
-    # Define calibration markers (Square, 20x20)
-    marker_size = 20
-    margin = 50
-    # Top markers moved DOWN to exclude header
-    top_marker_y = height - 90 
-    bottom_marker_y = margin
+    # Margins
+    margin_left = 40
+    margin_right = 40
+    margin_top = 60
+    margin_bottom = 40
     
-    # Title & Instructions (OUTSIDE the markers - Top of Page)
-    # Move text higher up
-    c.setFont("Helvetica-Bold", 16)
-    c.drawCentredString(width / 2, height - 40, "OMR Answer Sheet")
+    # Calculate available space
+    available_width = width - margin_left - margin_right
+    available_height = height - margin_top - margin_bottom
     
-    c.setFont("Helvetica", 10)
-    c.drawString(50, height - 60, "Instructions: Fill bubbles completely.")
-
-    # Draw Markers
+    # ========== TITLE (Outside alignment markers) ==========
+    c.setFont("Helvetica-Bold", 14)
     c.setFillColor(colors.black)
+    c.drawCentredString(width / 2, height - 20, "Bubble Your Answers")
     
-    # Markers Loop
-    markers = [
-        (margin, top_marker_y), # TL
-        (width - margin - marker_size, top_marker_y), # TR
-        (margin, bottom_marker_y), # BL
-        (width - margin - marker_size, bottom_marker_y) # BR
-    ]
+    # ========== ALIGNMENT MARKERS (Square boxes at 4 corners) ==========
+    marker_size = 15
+    marker_margin = 25  # Distance from page edge
+    marker_top_y = height - 45  # Below the title
     
-    for (mx, my) in markers:
-        # PDF Only
-        c.rect(mx, my, marker_size, marker_size, fill=1)
+    c.setFillColor(colors.black)
+    c.setStrokeColor(colors.black)
     
-    # Layout Config
-    # Optimize vertical space - Questions start inside the marker region
-    start_y = top_marker_y - 20 
-    col_x_start = 80
-    col_width = 250
-    row_height = 18 
+    # Top-Left marker
+    c.rect(marker_margin, marker_top_y - marker_size, 
+           marker_size, marker_size, stroke=0, fill=1)
     
-    current_y = start_y
-    current_col = 0
+    # Top-Right marker
+    c.rect(width - marker_margin - marker_size, marker_top_y - marker_size, 
+           marker_size, marker_size, stroke=0, fill=1)
     
-    q_counter = 1
+    # Bottom-Left marker
+    c.rect(marker_margin, marker_margin, 
+           marker_size, marker_size, stroke=0, fill=1)
     
-    c.setFont("Helvetica", 11)
+    # Bottom-Right marker
+    c.rect(width - marker_margin - marker_size, marker_margin, 
+           marker_size, marker_size, stroke=0, fill=1)
     
-    for sec_idx, num_q in enumerate(sections):
-        # Draw Section Header
-        if current_y < margin + 50:
-            current_col += 1
-            current_y = start_y
+    # ========== END ALIGNMENT MARKERS ==========
+    
+    # Section layout parameters
+    section_gap = 15  # Gap between sections
+    
+    # Calculate section heights based on number of questions
+    max_rows_per_section = []
+    for sec in SECTIONS_CONFIG:
+        max_rows = max(sec["questions_per_col"])
+        max_rows_per_section.append(max_rows)
+    
+    # Row height and header space
+    row_height = 22
+    header_height = 30
+    bubble_area_top_margin = 10
+    
+    # Calculate actual section heights
+    section_heights = []
+    for max_rows in max_rows_per_section:
+        h = header_height + bubble_area_top_margin + (max_rows * row_height) + 15
+        section_heights.append(h)
+    
+    total_sections_height = sum(section_heights) + (len(SECTIONS_CONFIG) - 1) * section_gap
+    
+    # Start Y position (from top)
+    current_y = height - margin_top
+    
+    # Draw each section
+    for sec_idx, section in enumerate(SECTIONS_CONFIG):
+        sec_height = section_heights[sec_idx]
+        
+        # Section box coordinates
+        box_x = margin_left
+        box_y = current_y - sec_height
+        box_width = available_width
+        box_height = sec_height
+        
+        # Draw section border (dark red rectangle)
+        c.setStrokeColor(BORDER_COLOR)
+        c.setLineWidth(1.5)
+        c.rect(box_x, box_y, box_width, box_height, stroke=1, fill=0)
+        
+        # Section title (centered at top of box)
+        c.setFillColor(TEXT_COLOR)
+        c.setFont("Helvetica-Bold", 11)
+        title_y = current_y - 20
+        c.drawCentredString(width / 2, title_y, section["name"])
+        
+        # Draw options header (A B C D or A B C D E)
+        options = section["options"]
+        num_cols = section["columns"]
+        questions_per_col = section["questions_per_col"]
+        
+        # Calculate column widths
+        col_width = box_width / num_cols
+        
+        # Bubble parameters
+        bubble_radius = 8
+        bubble_spacing = 23  # Horizontal spacing between bubbles
+        q_num_width = 25  # Space for question number
+        
+        # Draw column headers (options labels)
+        c.setFont("Helvetica-Bold", 9)
+        header_y = title_y - 25
+        
+        for col in range(num_cols):
+            col_x = box_x + (col * col_width)
             
-        if current_col > 1:
-             print("Warning: Content might exceed 2 columns and A4 width.")
-        
-        # PDF Header
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(col_x_start + (current_col * col_width), current_y, f"Section {sec_idx + 1}")
-        
-        current_y -= 25
-        
-        c.setFont("Helvetica", 11)
-        
-        for i in range(num_q):
-            # Check for column break
-            if current_y < margin + 30:
-                current_col += 1
-                current_y = start_y
-                
-            x_pos = col_x_start + (current_col * col_width)
+            # Calculate starting X for options in this column (aligned with bubbles)
+            options_start_x = col_x + q_num_width + 20  # Same offset as bubbles
             
-            # Draw Question Num
-            c.drawString(x_pos, current_y, f"{q_counter}.")
-            
-            # Draw options
-            options = ['A', 'B', 'C', 'D']
-            for idx, opt in enumerate(options):
-                opt_x = x_pos + 35 + (idx * 35)
-                # Bubble - Reduced radius to 6
-                c.circle(opt_x + 6, current_y + 4, 6, stroke=1, fill=0)
-                
-                # Text
-                c.setFont("Helvetica", 7)
-                c.drawCentredString(opt_x + 6, current_y + 1.5, opt)
-                
-                c.setFont("Helvetica", 11)
-
-            current_y -= row_height
-            q_counter += 1
+            # Draw option letters as header
+            for opt_idx, opt in enumerate(options):
+                opt_x = options_start_x + (opt_idx * bubble_spacing)
+                c.drawCentredString(opt_x, header_y, opt)
         
-        current_y -= 10 # Gap between sections
-
+        # Timing mark parameters
+        timing_mark_size = 6  # Size of timing mark square
+        timing_mark_offset = 3  # Offset from left edge of column
+        
+        # Draw questions and bubbles
+        c.setFont("Helvetica", 10)
+        q_counter = section["start_q"]
+        bubble_y_start = header_y - 20
+        
+        for col in range(num_cols):
+            col_x = box_x + (col * col_width)
+            num_questions_in_col = questions_per_col[col]
+            
+            for row in range(num_questions_in_col):
+                q_y = bubble_y_start - (row * row_height)
+                
+                # ===== TIMING MARK (black square at start of each row) =====
+                c.setFillColor(colors.black)
+                c.rect(col_x + timing_mark_offset, 
+                       q_y - timing_mark_size/2, 
+                       timing_mark_size, 
+                       timing_mark_size, 
+                       stroke=0, fill=1)
+                
+                # Question number (shifted right to make room for timing mark)
+                c.setFillColor(TEXT_COLOR)
+                q_text = f"{q_counter}"
+                c.drawString(col_x + timing_mark_offset + timing_mark_size + 5, q_y - 3, q_text)
+                
+                # Bubbles
+                options_start_x = col_x + q_num_width + 20  # Shifted right for timing mark
+                
+                for opt_idx, opt in enumerate(options):
+                    bubble_x = options_start_x + (opt_idx * bubble_spacing)
+                    
+                    # Draw bubble circle
+                    c.setStrokeColor(BORDER_COLOR)
+                    c.setLineWidth(0.8)
+                    c.circle(bubble_x, q_y, bubble_radius, stroke=1, fill=0)
+                    
+                    # Option letter inside bubble (smaller font)
+                    c.setFillColor(TEXT_COLOR)
+                    c.setFont("Helvetica", 7)
+                    c.drawCentredString(bubble_x, q_y - 2.5, opt)
+                    c.setFont("Helvetica", 10)
+                
+                q_counter += 1
+        
+        # Move to next section
+        current_y = box_y - section_gap
+    
     c.save()
     print(f"Generated PDF: {filename}")
     
-    # Convert to JPG using PyMuPDF (fitz)
+    # Convert to JPG
     convert_pdf_to_jpg(filename)
+    
 
 def convert_pdf_to_jpg(pdf_path, dpi=300):
+    """Convert PDF to high-quality JPG"""
     try:
         doc = fitz.open(pdf_path)
-        page = doc.load_page(0)  # 0 is the first page
+        page = doc.load_page(0)
         pix = page.get_pixmap(dpi=dpi)
         
         jpg_filename = pdf_path.replace(".pdf", ".jpg")
         pix.save(jpg_filename)
         print(f"Generated Image: {jpg_filename}")
+        
+        
+        doc.close()
     except Exception as e:
         print(f"Error converting PDF to Image: {e}")
 
-if __name__ == "__main__":
-    draw_omr_sheet(sections=[25, 18, 17])
 
+def draw_omr_sheet_custom(filename, sections_config):
+    """
+    Generate custom OMR sheet with provided section configuration
+    
+    sections_config: list of dicts with keys:
+        - name: Section name
+        - start_q: Starting question number
+        - end_q: Ending question number
+        - options: List of option letters (e.g., ["A", "B", "C", "D"])
+        - columns: Number of columns
+        - questions_per_col: List of questions per column (optional, auto-calculated if not provided)
+    """
+    c = canvas.Canvas(filename, pagesize=A4)
+    width, height = A4
+    
+    margin_left = 40
+    margin_right = 40
+    margin_top = 60
+    
+    available_width = width - margin_left - margin_right
+    
+    # Title
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(width / 2, height - 35, "Bubble Your Answers")
+    
+    section_gap = 15
+    row_height = 22
+    header_height = 30
+    bubble_area_top_margin = 10
+    
+    # Auto-calculate questions_per_col if not provided
+    for sec in sections_config:
+        if "questions_per_col" not in sec:
+            total_q = sec["end_q"] - sec["start_q"] + 1
+            cols = sec["columns"]
+            base = total_q // cols
+            remainder = total_q % cols
+            sec["questions_per_col"] = [base + (1 if i < remainder else 0) for i in range(cols)]
+    
+    # Calculate section heights
+    section_heights = []
+    for sec in sections_config:
+        max_rows = max(sec["questions_per_col"])
+        h = header_height + bubble_area_top_margin + (max_rows * row_height) + 15
+        section_heights.append(h)
+    
+    current_y = height - margin_top
+    
+    for sec_idx, section in enumerate(sections_config):
+        sec_height = section_heights[sec_idx]
+        
+        box_x = margin_left
+        box_y = current_y - sec_height
+        box_width = available_width
+        box_height = sec_height
+        
+        # Border
+        c.setStrokeColor(BORDER_COLOR)
+        c.setLineWidth(1.5)
+        c.rect(box_x, box_y, box_width, box_height, stroke=1, fill=0)
+        
+        # Title
+        c.setFillColor(TEXT_COLOR)
+        c.setFont("Helvetica-Bold", 11)
+        title_y = current_y - 20
+        c.drawCentredString(width / 2, title_y, section["name"])
+        
+        options = section["options"]
+        num_cols = section["columns"]
+        questions_per_col = section["questions_per_col"]
+        col_width = box_width / num_cols
+        
+        bubble_radius = 8
+        bubble_spacing = 23
+        q_num_width = 25
+        
+        # Headers
+        c.setFont("Helvetica-Bold", 9)
+        header_y = title_y - 25
+        
+        for col in range(num_cols):
+            col_x = box_x + (col * col_width)
+            options_start_x = col_x + q_num_width + 15
+            
+            for opt_idx, opt in enumerate(options):
+                opt_x = options_start_x + (opt_idx * bubble_spacing)
+                c.drawCentredString(opt_x, header_y, opt)
+        
+        # Questions and bubbles
+        c.setFont("Helvetica", 10)
+        q_counter = section["start_q"]
+        bubble_y_start = header_y - 20
+        
+        for col in range(num_cols):
+            col_x = box_x + (col * col_width)
+            num_questions_in_col = questions_per_col[col]
+            
+            for row in range(num_questions_in_col):
+                q_y = bubble_y_start - (row * row_height)
+                
+                c.drawString(col_x + 10, q_y - 3, f"{q_counter}")
+                
+                options_start_x = col_x + q_num_width + 15
+                
+                for opt_idx, opt in enumerate(options):
+                    bubble_x = options_start_x + (opt_idx * bubble_spacing)
+                    
+                    c.setStrokeColor(BORDER_COLOR)
+                    c.setLineWidth(0.8)
+                    c.circle(bubble_x, q_y, bubble_radius, stroke=1, fill=0)
+                    
+                    c.setFillColor(TEXT_COLOR)
+                    c.setFont("Helvetica", 7)
+                    c.drawCentredString(bubble_x, q_y - 2.5, opt)
+                    c.setFont("Helvetica", 10)
+                
+                q_counter += 1
+        
+        current_y = box_y - section_gap
+    
+    c.save()
+    print(f"Generated PDF: {filename}")
+    convert_pdf_to_jpg(filename)
+
+
+if __name__ == "__main__":
+    # Generate the standard NAT-style OMR sheet
+    draw_omr_sheet_sectioned("omr_sheet.pdf")
+    
+    # Example: Generate custom sheet
+    # custom_sections = [
+    #     {"name": "English", "start_q": 1, "end_q": 20, "options": ["A","B","C","D"], "columns": 2},
+    #     {"name": "Math", "start_q": 21, "end_q": 40, "options": ["A","B","C","D","E"], "columns": 2},
+    # ]
+    # draw_omr_sheet_custom("custom_omr.pdf", custom_sections)
 

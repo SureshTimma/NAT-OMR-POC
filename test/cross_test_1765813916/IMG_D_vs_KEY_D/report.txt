@@ -1,0 +1,42 @@
+============================================================
+OMR Section-Based Evaluation
+============================================================
+
+Detecting section boxes...
+Found 3 section boxes
+
+--- Section 1: Pyschometric ---
+Questions: 1-25
+Options: 4
+  Found 28 timing marks (ignored)
+  Found 175 bubble candidates
+  Detected answers for 25 questions
+Section Score: 100.0% (25/25)
+
+--- Section 2: Aptitude ---
+Questions: 26-43
+Options: 4
+  Found 25 timing marks (ignored)
+  Found 126 bubble candidates
+  Detected answers for 18 questions
+Section Score: 100.0% (18/18)
+
+--- Section 3: Math ---
+Questions: 44-60
+Options: 4
+  Found 21 timing marks (ignored)
+  Found 119 bubble candidates
+  Detected answers for 17 questions
+Section Score: 100.0% (17/17)
+Saved debug_bubbles.jpg
+
+============================================================
+OVERALL RESULTS
+============================================================
+  Section 1 (Pyschometric): 100.0% (25/25)
+  Section 2 (Aptitude): 100.0% (18/18)
+  Section 3 (Math): 100.0% (17/17)
+
+OVERALL SCORE: 100.0% (60/60)
+
+Saved detected_answers.json
