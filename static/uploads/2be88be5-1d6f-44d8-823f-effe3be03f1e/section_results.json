@@ -1,0 +1,23 @@
+[
+  {
+    "section": 1,
+    "name": "Pyschometric",
+    "correct": 7,
+    "total": 25,
+    "score": 28.000000000000004
+  },
+  {
+    "section": 2,
+    "name": "Aptitude",
+    "correct": 5,
+    "total": 18,
+    "score": 27.77777777777778
+  },
+  {
+    "section": 3,
+    "name": "Math",
+    "correct": 5,
+    "total": 17,
+    "score": 29.411764705882355
+  }
+]

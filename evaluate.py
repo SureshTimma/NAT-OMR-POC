@@ -3,6 +3,7 @@ import numpy as np
 import imutils
 import argparse
 import json
+import os
 
 # Section Configuration - Updated layout
 # Section 1: Pyschometric - 25 questions (4 options A-D)
@@ -456,10 +457,12 @@ def process_section(section_img, section_config, debug_prefix=""):
     return answers
 
 
-def evaluate_omr_sections(image_path, answer_key_path="answer_key.json"):
+def evaluate_omr_sections(image_path, answer_key_path="answer_key.json", output_dir="."):
     """
     Main function to evaluate OMR sheet with section detection
     """
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     print("=" * 60)
     print("OMR Section-Based Evaluation")
     print("=" * 60)
@@ -475,13 +478,15 @@ def evaluate_omr_sections(image_path, answer_key_path="answer_key.json"):
     ratio = width / float(image.shape[1])
     resized = cv2.resize(image, (width, int(image.shape[0] * ratio)))
     
-    # Load answer key
+    # Load Answer Key
     try:
-        with open(answer_key_path, 'r') as f:
-            loaded_key = json.load(f)
-            # Map letters to indices
-            mapping = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4}
-            answer_key = {int(k): mapping.get(v, 0) for k, v in loaded_key.items()}
+        with open(answer_key_path, "r") as f:
+            answer_key = json.load(f)
+            # Convert keys to integers
+            answer_key = {int(k): v for k, v in answer_key.items()}
+            # Convert answers to indices (A=0, B=1, etc)
+            opt_map = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
+            answer_key = {k: opt_map.get(v, -1) for k, v in answer_key.items()}
     except Exception as e:
         print(f"Warning: Could not load answer key: {e}")
         answer_key = {}
@@ -536,7 +541,7 @@ def evaluate_omr_sections(image_path, answer_key_path="answer_key.json"):
             filled_indices = q_data['filled_indices']
             bubbles = q_data['bubbles'] # List of (x, y, w, h, cx, cy, contour) relative to section
             
-            expected_idx = answer_key.get(q_num - 1) # Answer key is 0-indexed
+            expected_idx = answer_key.get(q_num) # Answer key is 1-indexed now
             
             # Determine correctness
             is_correct = False
@@ -593,8 +598,9 @@ def evaluate_omr_sections(image_path, answer_key_path="answer_key.json"):
         print(f"Section Score: {section_score:.1f}% ({section_correct}/{total})")
     
     # Save the visualized result
-    cv2.imwrite("debug_bubbles.jpg", debug_img)
-    print("Saved debug_bubbles.jpg")
+    output_image_path = os.path.join(output_dir, "debug_bubbles.jpg")
+    cv2.imwrite(output_image_path, debug_img)
+    print(f"Saved {output_image_path}")
     
     # Overall results
     print("\n" + "=" * 60)
@@ -614,7 +620,7 @@ def evaluate_omr_sections(image_path, answer_key_path="answer_key.json"):
     # detected_output is already populated in the loop
     detected_output = {str(q): val for q, val in sorted(all_answers.items())}
     
-    with open("detected_answers.json", 'w') as f:
+    with open(os.path.join(output_dir, "detected_answers.json"), 'w') as f:
         json.dump(detected_output, f, indent=2)
     print("\nSaved detected_answers.json")
     
