@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+debug_*.jpg
+omr_sheet_marked.jpg
+omr_sheet_marked.png
+test.jpg
+# Keep omr_sheet.pdf and omr_sheet.jpg as reference outputs for now, or ignore them?
+# Usually generated files are ignored, but for a simple PoC repo, they act as the "template".
+# I will keep them.
