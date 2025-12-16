@@ -113,20 +113,88 @@ def detect_red_boxes(image):
             x, y, w, h = cv2.boundingRect(c)
             boxes.append((x, y, w, h, c))
             
-    # Sort top-to-bottom
-    boxes = sorted(boxes, key=lambda b: b[1])
-    return boxes
+    # Filter and Sort boxes
+    # New Layout:
+    # Header Boxes (Names, Instructions) -> Top
+    # Phone Boxes -> Left Column
+    # Answer Sections -> Right Column
+    
+    # We can filter by location.
+    h_img, w_img = image.shape[:2]
+    mid_x = w_img // 2
+    
+    phone_boxes = []
+    answer_boxes = []
+    
+    for c in cnts:
+        area = cv2.contourArea(c)
+        if area > 1000: # Filter noise
+            x, y, w, h = cv2.boundingRect(c)
+            # Aspect ratio check can help
+            ar = w / float(h)
+            
+            print(f"DEBUG: Found box. Area={area}, x={x}, y={y}, w={w}, h={h}, ar={ar:.2f}")
 
-def process_phone_box(roi):
+            # Header exclusion: If Y is very high (top of page), ignore
+            # With new layout, header is top 25-30%. 
+            # Phone/Answers are at bottom.
+            if y < h_img * 0.25:
+                print("  -> Skipped as HEADER (y < 25%)")
+                continue # Skip header elements
+                
+            # Classify Left vs Right
+            center_bx = x + w // 2
+            if center_bx < mid_x:
+                print("  -> Classified as PHONE (Left)")
+                phone_boxes.append((x, y, w, h, c))
+            else:
+                print("  -> Classified as ANSWER (Right)")
+                answer_boxes.append((x, y, w, h, c))
+            
+    # Sort top-to-bottom
+    phone_boxes = sorted(phone_boxes, key=lambda b: b[1])
+    answer_boxes = sorted(answer_boxes, key=lambda b: b[1])
+    
+    # Return as combined list but in expected order for main loop processing?
+    # Actually, main loop logic likely iterates blindly. 
+    # Let's verify how main loop works. 
+    # It probably needs to know which is which.
+    # So let's return a dictionary or tuple.
+    return phone_boxes, answer_boxes
+    
+    # Only returning tuple breaks existing signature.
+    # Let's see how `evaluate_advanced.py` uses this. 
+    # It calls `detect_red_boxes` and then expects a list. 
+    # I should update the calling code too.
+
+def save_debug_image(img, name):
+    debug_dir = "tests/debug"
+    if not os.path.exists(debug_dir):
+        os.makedirs(debug_dir)
+    path = os.path.join(debug_dir, f"{name}.jpg")
+    cv2.imwrite(path, img)
+    # print(f"Saved debug: {path}")
+
+def process_phone_box(roi, debug_name=None):
     """Read a phone number box (10 columns, 0-9 bubbles)"""
-    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    # Debug: Save original ROI
+    if debug_name:
+        save_debug_image(roi, f"{debug_name}_orig")
+
+    # Crop out the header (Title + Write Boxes)
+    # Header is approx 28% of height. Safe to crop 30%.
+    bg_h_full, bg_w_full = roi.shape[:2]
+    crop_y = int(bg_h_full * 0.30)
+    roi_bubbles = roi[crop_y:, :]
+    
+    gray = cv2.cvtColor(roi_bubbles, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
     
     cnts = cv2.findContours(thresh.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     
-    bg_h, bg_w = roi.shape[:2]
+    bg_h, bg_w = roi_bubbles.shape[:2] # Upldate bg_h to bubble area height
     min_size = bg_w * 0.02
     max_size = bg_w * 0.1
     
@@ -148,70 +216,125 @@ def process_phone_box(roi):
     if len(bubbles) > 0:
         current_col = [bubbles[0]]
         for i in range(1, len(bubbles)):
-            if bubbles[i][0] - bubbles[i-1][0] > bg_w * 0.05: # Gap
-                 columns.append(current_col)
-                 current_col = [bubbles[i]]
+            if bubbles[i][0] - current_col[0][0] < bg_w * 0.05: # Same column
+                current_col.append(bubbles[i])
             else:
-                 current_col.append(bubbles[i])
+                columns.append(current_col)
+                current_col = [bubbles[i]]
         columns.append(current_col)
+        
+    # ROBUST ROW DETECTION
+    # Collect all bubbles and cluster by Y to find the 10 rows
+    all_bubbles_by_y = sorted(bubbles, key=lambda b: b[1])
+    rows = []
+    if all_bubbles_by_y:
+         current_row = [all_bubbles_by_y[0]]
+         for i in range(1, len(all_bubbles_by_y)):
+             if all_bubbles_by_y[i][1] - current_row[0][1] < bg_h * 0.05: # Same row (5% threshold)
+                 current_row.append(all_bubbles_by_y[i])
+             else:
+                 rows.append(current_row)
+                 current_row = [all_bubbles_by_y[i]]
+         rows.append(current_row)
+    
+    # Sort rows top-to-bottom and assign digits 0-9
+    rows = sorted(rows, key=lambda r: r[0][1])
+    
+    # Create a mapping of Y-center -> Digit
+    row_centers = []
+    for i, row in enumerate(rows):
+        # Average Y of row
+        avg_y = sum(b[1] + b[3]/2 for b in row) / len(row)
+        row_centers.append((avg_y, i))
+        
+    print(f"DEBUG: Phone Box - Found {len(columns)} columns and {len(rows)} rows.")
+    print(f"DEBUG: Row Centers: {[int(rc[0]) for rc in row_centers]}")
+        
+    # If we strictly have 10 rows, great. If not, we might need fallback.
+    # But usually with clean generation we get 10.
     
     phone_number = ""
     
     for col in columns:
-        # Sort top-to-bottom (0 to 9)
-        col = sorted(col, key=lambda b: b[1])
-        
-        # Robust Grid Matching:
-        # We expect 10 bubbles. If we have missing ones, simple enumerate fails.
-        # We can detect the grid range from the first and last detected bubbles (or box bounds if clean)
-        # But even better: we know there are 10 rows evenly spaced.
-        
-        if not col:
-            phone_number += "_"
-            continue
-            
-        # Estimate grid from detected bubbles
-        min_y = min(b[1] for b in col)
-        max_y = max(b[1] for b in col)
-        
-        # If we have few bubbles, this estimate is weak.
-        # Fallback: We know the 10 rows span roughly most of the ROI height minus margins.
-        # Let's try to map each bubble to a digit 0-9 based on normalized Y position.
-        
-        # Assuming height of ROI contains the 10 rows plus some margin
-        # The bubbles are roughly centered in 10 slots.
-        
         filled_digit = -1
         max_pixels = 0
         
-        # Use box height to define slots
-        row_height = bg_h / 10.0
-        
         for (bx, by, bw, bh, c) in col:
-            # Determine digit by centroid Y
-            cy = by + bh/2
-            digit_idx = int(cy / row_height)
-            digit_idx = min(max(digit_idx, 0), 9) # Clamp 0-9
-            
-            # Check filling
+            # Check if filled
             mask = np.zeros(thresh.shape, dtype="uint8")
             cv2.drawContours(mask, [c], -1, 255, -1)
             masked = cv2.bitwise_and(thresh, thresh, mask=mask)
             total = cv2.countNonZero(masked)
             
+            # Find which row this bubble belongs to
+            cy = by + bh/2
+            
+            # Find closest row center
+            best_row_idx = -1
+            min_dist = float('inf')
+            
+            for (ry, r_idx) in row_centers:
+                dist = abs(cy - ry)
+                if dist < min_dist:
+                    min_dist = dist
+                    best_row_idx = r_idx
+            
+            # Map valid row index to digit (0-9)
+            # If we detected exactly 10 rows, best_row_idx IS the digit.
+            # If we detected != 10, we might need to map percentage?
+            # Let's trust the row index if len(rows) == 10.
+            
+            digit = best_row_idx
+            if len(rows) == 10:
+                digit = best_row_idx
+            else:
+                 # Fallback: simple linear map if row detection failed count
+                 digit = int(cy / (bg_h/10.0))
+            
+            digit = min(max(digit, 0), 9)
+
             if total > max_pixels and total > (bw*bh)*0.5:
                 max_pixels = total
-                filled_digit = digit_idx
+                filled_digit = digit
                 
         if filled_digit != -1:
             phone_number += str(filled_digit)
         else:
             phone_number += "_"
             
+    # Draw debug visual
+    if debug_name:
+        debug_img = roi.copy()
+        
+        # Draw detected rows
+        for ry, r_idx in row_centers:
+            cv2.line(debug_img, (0, int(ry)), (bg_w, int(ry)), (0, 255, 255), 1)
+        
+        for col in columns:
+             for (bx, by, bw, bh, c) in col:
+                mask = np.zeros(thresh.shape, dtype="uint8")
+                cv2.drawContours(mask, [c], -1, 255, -1)
+                masked = cv2.bitwise_and(thresh, thresh, mask=mask)
+                total = cv2.countNonZero(masked)
+                
+                color = (255, 0, 0) # Blue
+                thickness = 1
+                if total > (bw*bh)*0.5:
+                     color = (0, 255, 0) # Green
+                     thickness = 2
+                
+                cv2.drawContours(debug_img, [c], -1, color, thickness)
+                
+        save_debug_image(debug_img, f"{debug_name}_visual")
+
     return phone_number
 
-def process_section_box(roi, config):
+def process_section_box(roi, config, debug_name=None):
     """Reuse existing logic to process answer sections"""
+    # Debug: Save ROI
+    if debug_name:
+        save_debug_image(roi, f"{debug_name}_orig")
+
     # This is a simplified version of the logic from evaluate.py
     # Re-implementing essentially the same steps adapted for the ROI
     
@@ -253,63 +376,66 @@ def process_section_box(roi, config):
             col_idx = min(col_idx, num_cols-1)
             cols[col_idx].append(b)
             
-    answers = {}
-    q_start = config["questions"][0]
-    
-    for col_idx, col_bubbles in enumerate(cols):
-        # Sort rows
-        col_bubbles = sorted(col_bubbles, key=lambda b: b[1])
+    # Draw logic inside function
+    if debug_name:
+        debug_img = roi.copy()
         
-        # Group into questions
-        # Each question has num_options bubbles in a row
-        rows = []
-        if col_bubbles:
-            curr_row = [col_bubbles[0]]
-            for i in range(1, len(col_bubbles)):
-                if col_bubbles[i][1] - col_bubbles[i-1][1] < h*0.015: # Same row
-                    curr_row.append(col_bubbles[i])
-                else:
-                    rows.append(curr_row)
-                    curr_row = [col_bubbles[i]]
-            rows.append(curr_row)
+        for col_bubbles in cols:
+            # Sort rows
+            col_bubbles = sorted(col_bubbles, key=lambda b: b[1])
             
-        # Process rows
-        for r_idx, row in enumerate(rows):
-            # Sort left-to-right (A, B, C, D)
-            row = sorted(row, key=lambda b: b[0])
+            # Group into questions
+            rows = []
+            if col_bubbles:
+                curr_row = [col_bubbles[0]]
+                for i in range(1, len(col_bubbles)):
+                    if col_bubbles[i][1] - col_bubbles[i-1][1] < h*0.02: # Same row threshold
+                        curr_row.append(col_bubbles[i])
+                    else:
+                        rows.append(curr_row)
+                        curr_row = [col_bubbles[i]]
+                rows.append(curr_row)
             
-            # Find filled
-            best_opt = -1
-            max_p = 0
-            for opt_idx, (bx, by, bw, bh, bc) in enumerate(row):
-                mask = np.zeros(thresh.shape, dtype="uint8")
-                cv2.drawContours(mask, [bc], -1, 255, -1)
-                masked = cv2.bitwise_and(thresh, thresh, mask=mask)
-                total = cv2.countNonZero(masked)
+            for row in rows:
+                # Find filled in this row
+                max_p = 0
+                best_idx = -1
                 
-                if total > max_p and total > (bw*bh)*0.5:
-                    max_p = total
-                    best_opt = opt_idx
-            
-            # Map Row Index to Question Number?
-            # We must be careful here. Assuming robust detection:
-            # The simplified logic assumes we found exactly the rows we expect.
-            # In a real rigorous system we'd check coordinates.
-            # For this MVP, we rely on the clean generation.
-            
-            # Calculate question number
-            # We need to know how many questions were in previous columns?
-            # Or assume standard distribution?
-            # SECTIONS_CONFIG specificies questions_per_col.
-            # Let's use a simple counter if we assume perfect detection.
-            pass # We need a reliable mapping strategy.
-            
-            # Alternative: Detection is usually perfect on generated images.
-            # We'll use a global counter approach if we process columns in order.
-            
-    # REWRITE: Robust Answer Extraction
-    # We will return the raw detected `rows` and map them to questions outside.
+                # Sort row left-to-right
+                row = sorted(row, key=lambda b: b[0])
+                
+                for idx, (bx, by, bw, bh, bc) in enumerate(row):
+                    mask = np.zeros(thresh.shape, dtype="uint8")
+                    cv2.drawContours(mask, [bc], -1, 255, -1)
+                    masked = cv2.bitwise_and(thresh, thresh, mask=mask)
+                    total = cv2.countNonZero(masked)
+                    if total > max_p:
+                        max_p = total
+                        best_idx = idx
+                
+                for idx, (bx, by, bw, bh, bc) in enumerate(row):
+                    color = (255, 0, 0) # Blue for empty
+                    thickness = 1
+                    
+                    # Threshold for valid fill
+                    # Re-calc pixel count (inefficient but safe)
+                    mask = np.zeros(thresh.shape, dtype="uint8")
+                    cv2.drawContours(mask, [bc], -1, 255, -1)
+                    masked = cv2.bitwise_and(thresh, thresh, mask=mask)
+                    total = cv2.countNonZero(masked)
+                    
+                    if total > (bw*bh)*0.5 and idx == best_idx:
+                        color = (0, 255, 0) # Green for filled
+                        thickness = 2
+                    
+                    cv2.drawContours(debug_img, [bc], -1, color, thickness)
+                    # cv2.rectangle(debug_img, (bx, by), (bx+bw, by+bh), color, thickness)
+
+        save_debug_image(debug_img, f"{debug_name}_visual")
+
     return cols
+
+
 
 def evaluate_advanced_omr(image_path, answer_key_path="answer_key.json"):
     image = cv2.imread(image_path)
@@ -330,27 +456,30 @@ def evaluate_advanced_omr(image_path, answer_key_path="answer_key.json"):
     warped = imutils.resize(warped, width=1000)
     
     # 2. Box Detection
-    boxes = detect_red_boxes(warped)
-    print(f"Detected {len(boxes)} red boxes.")
+    # 2. Box Detection
+    phone_boxes, answer_boxes = detect_red_boxes(warped)
+    print(f"Detected {len(phone_boxes)} phone boxes and {len(answer_boxes)} answer boxes.")
     
-    # Filter/Sort boxes
+    # Filter/Sort boxes - ALREADY DONE in detect_red_boxes
     # Phone boxes are on the LEFT. Answer boxes are on the RIGHT.
-    h, w = warped.shape[:2]
-    mid_x = w // 2
+    # No further sorting needed as default order returned is sorted by Y.
     
-    phone_boxes = []
-    answer_boxes = []
+    # DEBUG: Save Master Debug Image with all boxes
+    debug_master = warped.copy()
+    for i, (x, y, w, h, c) in enumerate(phone_boxes):
+        cv2.rectangle(debug_master, (x, y), (x+w, y+h), (255, 0, 0), 3)
+        cv2.putText(debug_master, f"Phone {i}", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
+        
+    for i, (x, y, w, h, c) in enumerate(answer_boxes):
+        cv2.rectangle(debug_master, (x, y), (x+w, y+h), (0, 0, 255), 3)
+        cv2.putText(debug_master, f"Section {i}", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
     
-    for (x, y, bw, bh, c) in boxes:
-        center_x = x + bw//2
-        if center_x < mid_x:
-            phone_boxes.append((x, y, bw, bh, c))
-        else:
-            answer_boxes.append((x, y, bw, bh, c))
-            
-    # Sort top-to-bottom
-    phone_boxes = sorted(phone_boxes, key=lambda b: b[1])
-    answer_boxes = sorted(answer_boxes, key=lambda b: b[1])
+    debug_dir = "tests/debug"
+    if not os.path.exists(debug_dir):
+        os.makedirs(debug_dir)
+        
+    cv2.imwrite(os.path.join(debug_dir, "master_debug.jpg"), debug_master)
+    print(f"Saved master debug image to {os.path.join(debug_dir, 'master_debug.jpg')}")
     
     results = {}
     
@@ -360,7 +489,7 @@ def evaluate_advanced_omr(image_path, answer_key_path="answer_key.json"):
         if i >= 3: break
         x, y, bw, bh, c = box
         roi = warped[y:y+bh, x:x+bw]
-        number = process_phone_box(roi)
+        number = process_phone_box(roi, debug_name=f"phone_{i}")
         # Verify length 10
         if len(number) > 10: number = number[:10]
         results[phone_labels[i]] = number
@@ -379,7 +508,7 @@ def evaluate_advanced_omr(image_path, answer_key_path="answer_key.json"):
         x, y, bw, bh, c = box
         roi = warped[y:y+bh, x:x+bw]
         
-        cols_data = process_section_box(roi, config)
+        cols_data = process_section_box(roi, config, debug_name=f"answer_sec_{sec_id}")
         
         # Map to questions
         # config['questions'] is range.
@@ -486,5 +615,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", required=True)
     parser.add_argument("--key", default="answer_key.json")
+    parser.add_argument("-o", "--output", required=False, help="Path to save JSON report")
     args = parser.parse_args()
-    evaluate_advanced_omr(args.image, args.key)
+    
+    # Run evaluation
+    results = evaluate_advanced_omr(args.image, args.key)
+    
+    # Save Report
+    if args.output:
+        output_path = args.output
+    else:
+        # Default to same dir as image
+        base = os.path.splitext(args.image)[0]
+        output_path = f"{base}_report.json"
+        
+    with open(output_path, "w") as f:
+        json.dump(results, f, indent=4)
+        print(f"Report saved to {output_path}")
