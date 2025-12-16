@@ -33,30 +33,35 @@ SECTIONS = {
 
 def detect_section_boxes(image):
     """
-    Detect the rectangular section boxes using edge detection
+    Detect the rectangular section boxes using color-based detection
     Returns list of bounding boxes sorted top to bottom
     """
-    # Convert to grayscale
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # Convert to HSV for better color detection
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     
-    # Apply Gaussian blur
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    # Detect dark red/maroon borders
+    # Dark red in HSV - adjusted for darker tones
+    lower_red1 = np.array([0, 30, 30])
+    upper_red1 = np.array([15, 255, 200])
+    lower_red2 = np.array([165, 30, 30])
+    upper_red2 = np.array([180, 255, 200])
     
-    # Use Canny edge detection to find borders
-    edges = cv2.Canny(blurred, 50, 150)
+    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    red_mask = cv2.bitwise_or(mask1, mask2)
+    
+    # Save debug mask
+    cv2.imwrite("debug_red_mask.jpg", red_mask)
     
     # Dilate to connect broken lines
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-    edges = cv2.dilate(edges, kernel, iterations=2)
+    red_mask = cv2.dilate(red_mask, kernel, iterations=3)
     
     # Close to fill gaps
-    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)
+    red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_CLOSE, kernel, iterations=2)
     
-    # Save debug mask
-    # cv2.imwrite("debug_edges.jpg", edges)
-    
-    # Find contours
-    cnts = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Find contours - use RETR_TREE to get hierarchy
+    cnts = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     
     section_boxes = []
@@ -116,61 +121,6 @@ def detect_section_boxes_alternative(image):
     return section_boxes
 
 
-def detect_timing_marks(thresh, img_w, img_h, num_cols):
-    """
-    Detect timing marks (small squares at the start of each row)
-    Returns list of Y positions for each timing mark, grouped by column
-    """
-    # Find contours
-    cnts = cv2.findContours(thresh.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    cnts = imutils.grab_contours(cnts)
-    
-    timing_marks = []
-    
-    # Timing marks are small squares (aspect ratio ~1, smaller than bubbles)
-    min_size = int(img_w * 0.008)
-    max_size = int(img_w * 0.025)
-    
-    for c in cnts:
-        (x, y, w, h) = cv2.boundingRect(c)
-        ar = w / float(h) if h > 0 else 0
-        area = cv2.contourArea(c)
-        
-        # Calculate fill ratio (timing marks are solid squares)
-        bbox_area = w * h
-        fill_ratio = area / bbox_area if bbox_area > 0 else 0
-        
-        # Timing marks: small, square, solid, near left edge of columns
-        if (min_size <= w <= max_size and 
-            min_size <= h <= max_size and 
-            0.8 <= ar <= 1.2 and
-            fill_ratio > 0.7):  # Solid fill
-            
-            cx = x + w // 2
-            cy = y + h // 2
-            timing_marks.append((cx, cy, x, y, w, h))
-    
-    if not timing_marks:
-        return None
-    
-    # Group timing marks by column (based on X position)
-    timing_marks = sorted(timing_marks, key=lambda m: m[0])  # Sort by X
-    
-    col_width = img_w / num_cols
-    columns = [[] for _ in range(num_cols)]
-    
-    for mark in timing_marks:
-        cx = mark[0]
-        col_idx = min(int(cx / col_width), num_cols - 1)
-        columns[col_idx].append(mark[1])  # Store Y position
-    
-    # Sort each column by Y
-    for i in range(num_cols):
-        columns[i] = sorted(columns[i])
-    
-    return columns
-
-
 def process_section(section_img, section_config, debug_prefix=""):
     """
     Process a single section and extract answers
@@ -189,34 +139,20 @@ def process_section(section_img, section_config, debug_prefix=""):
     # Threshold to find bubbles - use OTSU for automatic threshold
     thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
     
-    # if debug_prefix:
-    #     cv2.imwrite(f"debug_thresh_{debug_prefix}.jpg", thresh)
-    
-    # if debug_prefix:
-    #     cv2.imwrite(f"{debug_prefix}_thresh.jpg", thresh)
-    
-    img_h, img_w = section_img.shape[:2]
-    
-    # Detect timing marks for precise row positioning
-    timing_mark_rows = detect_timing_marks(thresh, img_w, img_h, num_cols)
-    
-    # Timing mark detection can be unreliable on synthetic images with perfect alignment
-    # Fallback row detection (grouping by Y) works better here.
-    use_timing_marks = False
-    if timing_mark_rows:
-         total_marks = sum(len(col) for col in timing_mark_rows)
-         print(f"  Found {total_marks} timing marks (ignored)")
+    if debug_prefix:
+        cv2.imwrite(f"{debug_prefix}_thresh.jpg", thresh)
     
     # Find ALL contours (not just external) to get bubbles inside section
     cnts = cv2.findContours(thresh.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     
     bubble_cnts = []
+    img_h, img_w = section_img.shape[:2]
     
     # Calculate expected bubble size based on section dimensions
-    # Bubbles are typically about 1.5-5% of section width
+    # Bubbles are typically about 2-4% of section width
     min_bubble_size = int(img_w * 0.015)
-    max_bubble_size = int(img_w * 0.055)
+    max_bubble_size = int(img_w * 0.06)
     
     for c in cnts:
         (x, y, w, h) = cv2.boundingRect(c)
@@ -230,7 +166,7 @@ def process_section(section_img, section_config, debug_prefix=""):
         # Filter for circular bubbles
         # - Size within expected range
         # - Aspect ratio close to 1 (circular)
-        # - Circularity > 0.4 (reasonably round)
+        # - Circularity > 0.5 (reasonably round)
         # - Not touching edges
         if (min_bubble_size <= w <= max_bubble_size and 
             min_bubble_size <= h <= max_bubble_size and 
@@ -238,15 +174,10 @@ def process_section(section_img, section_config, debug_prefix=""):
             circularity > 0.4):
             
             # Exclude edge artifacts (bubbles too close to section boundary)
-            # Use smaller margin for bottom/right edges to capture last row bubbles
-            margin_top = 10
-            margin_left = 10
-            margin_right = 5
-            margin_bottom = 3  # Smaller margin at bottom to capture last row
-            
-            if (x > margin_left and y > margin_top and 
-                (x + w) < (img_w - margin_right) and 
-                (y + h) < (img_h - margin_bottom)):
+            margin = 10
+            if (x > margin and y > margin and 
+                (x + w) < (img_w - margin) and 
+                (y + h) < (img_h - margin)):
                 bubble_cnts.append(c)
     
     print(f"  Found {len(bubble_cnts)} bubble candidates")
@@ -259,7 +190,7 @@ def process_section(section_img, section_config, debug_prefix=""):
     if debug_prefix:
         debug_bubbles = section_img.copy()
         cv2.drawContours(debug_bubbles, bubble_cnts, -1, (0, 255, 0), 2)
-        # cv2.imwrite(f"{debug_prefix}_bubbles.jpg", debug_bubbles)
+        cv2.imwrite(f"{debug_prefix}_bubbles.jpg", debug_bubbles)
     
     # Get bounding boxes for sorting
     bubble_data = []
@@ -278,42 +209,31 @@ def process_section(section_img, section_config, debug_prefix=""):
         return {}
     
     # Find column boundaries by looking for large gaps in X coordinates
-    # Sort all bubble center X positions
-    all_xs = sorted([b[4] for b in bubble_data])
+    # First, group bubbles by approximate X position
+    x_groups = []
+    current_group = [cxs[0]]
     
-    # Find gaps between consecutive X positions
-    gaps = []
-    for i in range(1, len(all_xs)):
-        gap = all_xs[i] - all_xs[i-1]
-        gaps.append((gap, all_xs[i-1], all_xs[i]))
+    for i in range(1, len(cxs)):
+        if cxs[i] - cxs[i-1] > img_w * 0.08:  # Gap > 8% of width = new column group
+            x_groups.append(current_group)
+            current_group = [cxs[i]]
+        else:
+            current_group.append(cxs[i])
+    x_groups.append(current_group)
     
-    # Sort gaps by size (largest first) and take top (num_cols - 1) gaps
-    # These represent the boundaries between question columns
-    gaps.sort(reverse=True)
+    # Each group represents bubbles in one column's worth of options
+    # We expect num_cols * num_options groups approximately, or num_cols groups
     
-    # Get the column boundaries (the midpoints of the largest gaps)
-    col_boundaries = []
-    for i in range(min(num_cols - 1, len(gaps))):
-        gap_size, left_x, right_x = gaps[i]
-        # Only use gaps that are significant (> 5% of image width)
-        if gap_size > img_w * 0.05:
-            midpoint = (left_x + right_x) / 2
-            col_boundaries.append(midpoint)
+    # Calculate column boundaries
+    all_xs = [b[4] for b in bubble_data]
+    x_min, x_max = min(all_xs), max(all_xs)
+    col_width = (x_max - x_min) / num_cols
     
-    col_boundaries.sort()
-    
-    # Assign bubbles to question columns based on boundaries
+    # Assign bubbles to columns
     columns = [[] for _ in range(num_cols)]
     for data in bubble_data:
         cx = data[4]
-        col_idx = 0
-        for boundary in col_boundaries:
-            if cx > boundary:
-                col_idx += 1
-            else:
-                break
-        if col_idx >= num_cols:
-            col_idx = num_cols - 1
+        col_idx = min(int((cx - x_min) / col_width), num_cols - 1)
         columns[col_idx].append(data)
     
     # Sort each column top-to-bottom by center Y
@@ -328,41 +248,25 @@ def process_section(section_img, section_config, debug_prefix=""):
         if not col_bubbles:
             continue
         
-        # Use timing marks if available for precise row detection
-        if use_timing_marks and timing_mark_rows and col_idx < len(timing_mark_rows) and timing_mark_rows[col_idx]:
-            # Use timing mark Y positions to group bubbles into rows
-            timing_ys = timing_mark_rows[col_idx]
-            row_tolerance = img_h * 0.025  # 2.5% tolerance for matching
+        # Group by Y coordinate (each question's bubbles are on same row)
+        rows = []
+        current_row = [col_bubbles[0]]
+        
+        for i in range(1, len(col_bubbles)):
+            prev_cy = col_bubbles[i-1][5]
+            curr_cy = col_bubbles[i][5]
             
-            rows = []
-            for ty in timing_ys:
-                row = []
-                for bubble in col_bubbles:
-                    bubble_cy = bubble[5]
-                    if abs(bubble_cy - ty) < row_tolerance:
-                        row.append(bubble)
-                if row:
-                    rows.append(row)
-        else:
-            # Fallback: Group by Y coordinate (each question's bubbles are on same row)
-            rows = []
-            current_row = [col_bubbles[0]]
-            
-            for i in range(1, len(col_bubbles)):
-                prev_cy = col_bubbles[i-1][5]
-                curr_cy = col_bubbles[i][5]
-                
-                # If Y difference is small, same row (use percentage of image height)
-                row_threshold = img_h * 0.03  # 3% of height
-                if abs(curr_cy - prev_cy) < row_threshold:
-                    current_row.append(col_bubbles[i])
-                else:
-                    if current_row:
-                        rows.append(current_row)
-                    current_row = [col_bubbles[i]]
-            
-            if current_row:
-                rows.append(current_row)
+            # If Y difference is small, same row (use percentage of image height)
+            row_threshold = img_h * 0.03  # 3% of height
+            if abs(curr_cy - prev_cy) < row_threshold:
+                current_row.append(col_bubbles[i])
+            else:
+                if current_row:
+                    rows.append(current_row)
+                current_row = [col_bubbles[i]]
+        
+        if current_row:
+            rows.append(current_row)
         
         # Process each row
         for row in rows:
@@ -373,96 +277,39 @@ def process_section(section_img, section_config, debug_prefix=""):
             # Sort row left-to-right by center X
             row = sorted(row, key=lambda b: b[4])
             
-            # Remove duplicate contours at similar X positions (keep the larger one)
-            # This handles cases where both outer ring and inner content are detected
-            deduplicated_row = []
-            min_x_gap = img_w * 0.02  # Minimum 2% width gap between distinct bubbles
-            
-            for bubble in row:
-                if not deduplicated_row:
-                    deduplicated_row.append(bubble)
-                else:
-                    last_bubble = deduplicated_row[-1]
-                    if bubble[4] - last_bubble[4] < min_x_gap:
-                        # Same position - keep the one with larger area
-                        last_area = last_bubble[2] * last_bubble[3]  # w * h
-                        curr_area = bubble[2] * bubble[3]
-                        if curr_area > last_area:
-                            deduplicated_row[-1] = bubble
-                    else:
-                        deduplicated_row.append(bubble)
-            
-            row = deduplicated_row
-            
-            # Only take the first num_options bubbles (in case extras were detected)
-            row = row[:num_options]
-            
             if q_idx >= len(questions):
                 break
             
             q_num = questions[q_idx]
             
-            # Find which bubbles are filled
-            # Use adaptive thresholding based on pixel counts in the row
-            pixel_counts = []
+            # Find which bubble is filled (most pixels)
+            max_pixels = 0
+            selected = None
+            
             for opt_idx, bubble in enumerate(row):
-                 if opt_idx >= num_options: break
-                 contour = bubble[6]
-                 mask = np.zeros(thresh.shape, dtype="uint8")
-                 cv2.drawContours(mask, [contour], -1, 255, -1)
-                 # Count non-zero pixels in the thresholded image (bubbles are white in thresh)
-                 masked = cv2.bitwise_and(thresh, thresh, mask=mask)
-                 total = cv2.countNonZero(masked)
-                 pixel_counts.append(total)
+                if opt_idx >= num_options:
+                    break
+                contour = bubble[6]
+                mask = np.zeros(thresh.shape, dtype="uint8")
+                cv2.drawContours(mask, [contour], -1, 255, -1)
+                masked = cv2.bitwise_and(thresh, thresh, mask=mask)
+                total = cv2.countNonZero(masked)
+                
+                if total > max_pixels:
+                    max_pixels = total
+                    selected = opt_idx
             
-            if not pixel_counts:
-                answers[q_num] = {'filled_indices': [], 'bubbles': []}
-                q_idx += 1
-                continue
-
-            # Adaptive threshold logic
-            # Bubbles are either filled (high pixels) or empty (low pixels)
-            # We can use a relative threshold. 
-            # If a bubble has > 50% of its area filled? Or relative to max/min in row.
-            
-            # Simple approach: Threshold = Min + (Max - Min) * 0.5
-            # If variation is small (all empty), threshold might be too sensitive.
-            # Add a minimum absolute filled area requirement (e.g. 30% of bubble area)
-            
-            min_val = min(pixel_counts)
-            max_val = max(pixel_counts)
-            avg_area = sum(b[2]*b[3] for b in row[:len(pixel_counts)]) / len(pixel_counts)
-            
-            # Absolute threshold: at least 40% of standard bubble area must be filled
-            # (Bubbles in 'thresh' are white where filled)
-            abs_threshold = avg_area * 0.4 
-            
-            # Relative threshold to distinguish filled vs empty circles (borders usually give some pixels)
-            rel_threshold = min_val + (max_val - min_val) * 0.5
-            
-            final_threshold = max(abs_threshold, rel_threshold)
-            
-            filled_indices = []
-            for i, count in enumerate(pixel_counts):
-                if count > final_threshold:
-                    filled_indices.append(i)
-            
-            answers[q_num] = {
-                'filled_indices': filled_indices,
-                'bubbles': row[:len(pixel_counts)] # Store bubble data for drawing
-            }
+            answers[q_num] = selected
             q_idx += 1
     
     print(f"  Detected answers for {len(answers)} questions")
     return answers
 
 
-def evaluate_omr_sections(image_path, answer_key_path="answer_key.json", output_dir="."):
+def evaluate_omr_sections(image_path, answer_key_path="answer_key.json", output_dir=None):
     """
     Main function to evaluate OMR sheet with section detection
     """
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
     print("=" * 60)
     print("OMR Section-Based Evaluation")
     print("=" * 60)
@@ -478,15 +325,13 @@ def evaluate_omr_sections(image_path, answer_key_path="answer_key.json", output_
     ratio = width / float(image.shape[1])
     resized = cv2.resize(image, (width, int(image.shape[0] * ratio)))
     
-    # Load Answer Key
+    # Load answer key
     try:
-        with open(answer_key_path, "r") as f:
-            answer_key = json.load(f)
-            # Convert keys to integers
-            answer_key = {int(k): v for k, v in answer_key.items()}
-            # Convert answers to indices (A=0, B=1, etc)
-            opt_map = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
-            answer_key = {k: opt_map.get(v, -1) for k, v in answer_key.items()}
+        with open(answer_key_path, 'r') as f:
+            loaded_key = json.load(f)
+            # Map letters to indices
+            mapping = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4}
+            answer_key = {int(k): mapping.get(v, 0) for k, v in loaded_key.items()}
     except Exception as e:
         print(f"Warning: Could not load answer key: {e}")
         answer_key = {}
@@ -507,8 +352,10 @@ def evaluate_omr_sections(image_path, answer_key_path="answer_key.json", output_
         cv2.rectangle(debug_img, (x, y), (x+w, y+h), (0, 255, 0), 2)
         cv2.putText(debug_img, f"Section {i+1}", (x+10, y+30), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-    # cv2.imwrite("debug_sections.jpg", debug_img)
-    # print("Saved debug_sections.jpg")
+    
+    debug_sections_path = os.path.join(output_dir, "debug_sections.jpg") if output_dir else "debug_sections.jpg"
+    cv2.imwrite(debug_sections_path, debug_img)
+    print(f"Saved {debug_sections_path}")
     
     # Process each section
     all_answers = {}
@@ -528,79 +375,36 @@ def evaluate_omr_sections(image_path, answer_key_path="answer_key.json", output_
         pad = 5
         section_img = resized[max(0, y+pad):y+h-pad, max(0, x+pad):x+w-pad]
         
-        # cv2.imwrite(f"debug_section_{section_num}.jpg", section_img)
+        debug_sec_filename = f"debug_section_{section_num}"
+        debug_sec_path = os.path.join(output_dir, debug_sec_filename) if output_dir else debug_sec_filename
+        
+        cv2.imwrite(f"{debug_sec_path}.jpg", section_img)
         
         # Process section
-        answers_data = process_section(section_img, config, f"debug_section_{section_num}")
+        answers = process_section(section_img, config, debug_sec_path)
+        all_answers.update(answers)
         
-        # Calculate section score and draw visualization
-        section_correct = 0
+        # Calculate section score
+        correct = 0
         total = len(config['questions'])
         
-        for q_num, q_data in answers_data.items():
-            filled_indices = q_data['filled_indices']
-            bubbles = q_data['bubbles'] # List of (x, y, w, h, cx, cy, contour) relative to section
+        for q in config['questions']:
+            detected = answers.get(q)
+            expected = answer_key.get(q - 1)  # Answer key is 0-indexed
             
-            expected_idx = answer_key.get(q_num) # Answer key is 1-indexed now
-            
-            # Determine correctness
-            is_correct = False
-            if len(filled_indices) == 1 and filled_indices[0] == expected_idx:
-                is_correct = True
-                section_correct += 1
-            
-            # Draw visualization on debug_img (Global coordinates)
-            # Global offset is (x, y) (from section_boxes loop: x, y, w, h, _)
-            # Need to account for section padding 'pad' used when cropping
-            current_pad = 5 # Matches the pad=5 used above
-            
-            # Helper to draw circle in global coords
-            def draw_global_circle(local_bubble, color, thickness=2):
-                 bx, by, bw, bh = local_bubble[0], local_bubble[1], local_bubble[2], local_bubble[3]
-                 global_x = x + current_pad + bx + bw//2
-                 global_y = y + current_pad + by + bh//2
-                 radius = int(max(bw, bh) // 2 * 1.2) # Slightly larger than bubble
-                 cv2.circle(debug_img, (global_x, global_y), radius, color, thickness)
-
-            if is_correct:
-                # Correct Answer 1: Circle with GREEN
-                if expected_idx is not None and expected_idx < len(bubbles):
-                     draw_global_circle(bubbles[expected_idx], (0, 255, 0), 3) # Green
-            else:
-                # Wrong/Unfilled/Multi: Score 0
-                
-                # "Wrong answers should be circle with red" -> All filled options get RED
-                for idx in filled_indices:
-                    if idx < len(bubbles):
-                        draw_global_circle(bubbles[idx], (0, 0, 255), 3) # Red
-                
-                # "Correct answer should be circle with blue"
-                if expected_idx is not None and expected_idx < len(bubbles):
-                    # Draw Blue. If it was also filled (multi-fill case containing correct), 
-                    # this will draw Blue over Red (or we can use different radius/thickness)
-                    # User request: "correct answer should be blue"
-                     draw_global_circle(bubbles[expected_idx], (255, 0, 0), 2) # Blue
-            
-            # Store simple result for JSON output (join with | if multiple)
-            answer_letters = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E'}
-            detected_chars = [answer_letters.get(idx, '?') for idx in filled_indices]
-            all_answers[q_num] = "".join(detected_chars) if detected_chars else ""
-
-        section_score = (section_correct / total) * 100 if total > 0 else 0
+            if detected is not None and detected == expected:
+                correct += 1
+        
+        section_score = (correct / total) * 100 if total > 0 else 0
         section_results.append({
             "section": section_num,
             "name": config['name'],
-            "correct": section_correct,
+            "correct": correct,
             "total": total,
             "score": section_score
         })
         
-        print(f"Section Score: {section_score:.1f}% ({section_correct}/{total})")
-    
-    # Save the visualized result
-    output_image_path = os.path.join(output_dir, "debug_bubbles.jpg")
-    cv2.imwrite(output_image_path, debug_img)
-    print(f"Saved {output_image_path}")
+        print(f"Section Score: {section_score:.1f}% ({correct}/{total})")
     
     # Overall results
     print("\n" + "=" * 60)
@@ -617,12 +421,13 @@ def evaluate_omr_sections(image_path, answer_key_path="answer_key.json", output_
     print(f"\nOVERALL SCORE: {overall_score:.1f}% ({total_correct}/{total_questions})")
     
     # Save detected answers
-    # detected_output is already populated in the loop
-    detected_output = {str(q): val for q, val in sorted(all_answers.items())}
+    answer_letters = {0: 'A', 1: 'B', 2: 'C', 3: 'D', 4: 'E'}
+    detected_output = {str(q): answer_letters.get(a, '?') for q, a in sorted(all_answers.items())}
     
-    with open(os.path.join(output_dir, "detected_answers.json"), 'w') as f:
+    json_path = os.path.join(output_dir, "detected_answers.json") if output_dir else "detected_answers.json"
+    with open(json_path, 'w') as f:
         json.dump(detected_output, f, indent=2)
-    print("\nSaved detected_answers.json")
+    print(f"\nSaved {json_path}")
     
     return all_answers, section_results
 

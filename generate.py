@@ -49,8 +49,8 @@ SECTIONS_CONFIG = [
     }
 ]
 
-# Colors - All black for better scanning
-BORDER_COLOR = colors.black
+# Colors
+BORDER_COLOR = HexColor("#8B0000")  # Dark red/maroon for borders
 TEXT_COLOR = colors.black
 
 
@@ -69,25 +69,19 @@ def draw_omr_sheet_sectioned(filename="omr_sheet_sectioned.pdf"):
     available_width = width - margin_left - margin_right
     available_height = height - margin_top - margin_bottom
     
-    # ========== TITLE (Outside alignment markers) ==========
-    c.setFont("Helvetica-Bold", 14)
-    c.setFillColor(colors.black)
-    c.drawCentredString(width / 2, height - 20, "Bubble Your Answers")
-    
     # ========== ALIGNMENT MARKERS (Square boxes at 4 corners) ==========
     marker_size = 15
     marker_margin = 25  # Distance from page edge
-    marker_top_y = height - 45  # Below the title
     
     c.setFillColor(colors.black)
     c.setStrokeColor(colors.black)
     
     # Top-Left marker
-    c.rect(marker_margin, marker_top_y - marker_size, 
+    c.rect(marker_margin, height - marker_margin - marker_size, 
            marker_size, marker_size, stroke=0, fill=1)
     
     # Top-Right marker
-    c.rect(width - marker_margin - marker_size, marker_top_y - marker_size, 
+    c.rect(width - marker_margin - marker_size, height - marker_margin - marker_size, 
            marker_size, marker_size, stroke=0, fill=1)
     
     # Bottom-Left marker
@@ -99,6 +93,10 @@ def draw_omr_sheet_sectioned(filename="omr_sheet_sectioned.pdf"):
            marker_size, marker_size, stroke=0, fill=1)
     
     # ========== END ALIGNMENT MARKERS ==========
+    
+    # Title
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(width / 2, height - 35, "Bubble Your Answers")
     
     # Section layout parameters
     section_gap = 15  # Gap between sections
@@ -166,17 +164,13 @@ def draw_omr_sheet_sectioned(filename="omr_sheet_sectioned.pdf"):
         for col in range(num_cols):
             col_x = box_x + (col * col_width)
             
-            # Calculate starting X for options in this column (aligned with bubbles)
-            options_start_x = col_x + q_num_width + 20  # Same offset as bubbles
+            # Calculate starting X for options in this column
+            options_start_x = col_x + q_num_width + 15
             
             # Draw option letters as header
             for opt_idx, opt in enumerate(options):
                 opt_x = options_start_x + (opt_idx * bubble_spacing)
                 c.drawCentredString(opt_x, header_y, opt)
-        
-        # Timing mark parameters
-        timing_mark_size = 6  # Size of timing mark square
-        timing_mark_offset = 3  # Offset from left edge of column
         
         # Draw questions and bubbles
         c.setFont("Helvetica", 10)
@@ -190,21 +184,12 @@ def draw_omr_sheet_sectioned(filename="omr_sheet_sectioned.pdf"):
             for row in range(num_questions_in_col):
                 q_y = bubble_y_start - (row * row_height)
                 
-                # ===== TIMING MARK (black square at start of each row) =====
-                c.setFillColor(colors.black)
-                c.rect(col_x + timing_mark_offset, 
-                       q_y - timing_mark_size/2, 
-                       timing_mark_size, 
-                       timing_mark_size, 
-                       stroke=0, fill=1)
-                
-                # Question number (shifted right to make room for timing mark)
-                c.setFillColor(TEXT_COLOR)
+                # Question number
                 q_text = f"{q_counter}"
-                c.drawString(col_x + timing_mark_offset + timing_mark_size + 5, q_y - 3, q_text)
+                c.drawString(col_x + 10, q_y - 3, q_text)
                 
                 # Bubbles
-                options_start_x = col_x + q_num_width + 20  # Shifted right for timing mark
+                options_start_x = col_x + q_num_width + 15
                 
                 for opt_idx, opt in enumerate(options):
                     bubble_x = options_start_x + (opt_idx * bubble_spacing)
@@ -376,7 +361,7 @@ def draw_omr_sheet_custom(filename, sections_config):
 
 if __name__ == "__main__":
     # Generate the standard NAT-style OMR sheet
-    draw_omr_sheet_sectioned("omr_sheet.pdf")
+    draw_omr_sheet_sectioned("omr_sheet_sectioned.pdf")
     
     # Example: Generate custom sheet
     # custom_sections = [
