@@ -7,3 +7,20 @@ test.jpg
 # Keep omr_sheet.pdf and omr_sheet.jpg as reference outputs for now, or ignore them?
 # Usually generated files are ignored, but for a simple PoC repo, they act as the "template".
 # I will keep them.
+
+# Runtime & Data
+static/uploads/
+detected_answers.json
+section_results.json
+expected_key.json
+*.log
+.DS_Store
+
+# Environments
+venv/
+env/
+.env
+
+# Editor
+.vscode/
+.idea/
