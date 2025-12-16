@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: nat-omr-poc
+    runtime: docker
+    plan: free
+    region: singapore # Optional: Choose a region close to you (e.g., ohio, frankfurt, oregon, singapore)
+    envVars:
+      - key: PORT
+        value: 10000
+    autoDeploy: true
