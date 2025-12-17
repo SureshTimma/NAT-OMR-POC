@@ -223,6 +223,9 @@ def process_question_grid(gray, box, debug_img, name, answer_key):
         
     # Robust Row Step using Span
     c_ys = [b[1] + b[3]/2 for b in bubbles]
+    if not c_ys:
+         return {str(i): "N/A" for i in range(1, 61)}
+
     min_y = min(c_ys)
     max_y = max(c_ys)
     grid_h = max_y - min_y
@@ -232,6 +235,7 @@ def process_question_grid(gray, box, debug_img, name, answer_key):
     large_col_w = roi_w / 4
     options = ['A', 'B', 'C', 'D']
     
+    # Store bubble detections with coordinates
     for b in bubbles:
         bx, by, bw, bh = b
         cx = bx + bw/2
@@ -263,52 +267,112 @@ def process_question_grid(gray, box, debug_img, name, answer_key):
         if px_count > 600:
             opt = options[opt_idx]
             q_num = 1 + (c_idx * 15) + r_idx
-            detected_list[str(q_num)].append(opt)
-            
-            # Visual Scoring (Per Bubble)
-            correct_opt = answer_key.get(str(q_num), "")
-            # Green if this bubble is IN the correct answer (simple check)
-            # But correct_opt is usually single "A".
-            color = (0, 255, 0) if opt in correct_opt else (0, 0, 255)
-            cv2.rectangle(debug_img, (x+bx, roi_y+by), (x+bx+bw, roi_y+by+bh), color, 2)
+            # Store tuple: (option_char, bubble_rect)
+            detected_list[str(q_num)].append((opt, b))
 
-    # Finalize Answers (Sort and Join)
+    # Process results and draw visualizations
     detected_answers = {}
-    for i in range(1, 61):
-        lst = detected_list[str(i)]
-        if not lst:
-            detected_answers[str(i)] = "N/A"
-        else:
-            # Unique Sorted
-            detected_answers[str(i)] = "".join(sorted(list(set(lst))))
-            
-            # Visual Scoring
-            correct_opt = answer_key.get(str(q_num), "")
-            color = (0, 255, 0) if opt == correct_opt else (0, 0, 255)
-            cv2.rectangle(debug_img, (x+bx, roi_y+by), (x+bx+bw, roi_y+by+bh), color, 2)
-
-    # Visual Scoring: Correct Answers
+    
+    # Pre-calc for coordinate mapping
+    px_scale = roi_w / 535.0
+    ideal_offsets = [
+        -16.5 * px_scale, 5.5 * px_scale, 27.5 * px_scale, 49.5 * px_scale
+    ]
+    
     for q_num in range(1, 61):
         q_str = str(q_num)
-        detected = detected_answers.get(q_str, "N/A")
-        correct = answer_key.get(q_str, "")
+        items = detected_list[q_str] # List of (opt, rect)
         
-        if detected != correct and correct in options:
-            col_idx = (q_num - 1) // 15
-            row_idx = (q_num - 1) % 15
-            opt_idx = options.index(correct)
+        detected_opts = [item[0] for item in items]
+        detected_rects = [item[1] for item in items]
+        
+        if not items:
+            detected_str = "N/A"
+        else:
+            # Sort bubbles by option (A, B, C, D)
+            items.sort(key=lambda k: k[0])
+            detected_opts = [item[0] for item in items]
+            detected_rects = [item[1] for item in items]
+            detected_str = "".join(list(set(detected_opts))) # Unique sorted string
             
-            col_center_x = (col_idx + 0.5) * large_col_w
-            px_scale = roi_w / 535.0
+        detected_answers[q_str] = detected_str
+        
+        correct_opt = answer_key.get(q_str, "")
+        
+        # Color Codes (BGR)
+        GREEN = (0, 255, 0)
+        RED = (0, 0, 255)
+        BLUE = (255, 0, 0)
+        
+        # Helper to get expected center for an option
+        def get_expected_center(q_num, opt_char):
+             if opt_char not in options: return None
+             c_idx = (q_num - 1) // 15
+             r_idx = (q_num - 1) % 15
+             opt_idx = options.index(opt_char)
+             
+             col_center_x = (c_idx + 0.5) * large_col_w
+             
+             target_cx = col_center_x + ideal_offsets[opt_idx]
+             target_cy = min_y + (r_idx * row_step)
+             return (int(x + target_cx), int(roi_y + target_cy))
+
+        # --- Visualization Logic ---
+        
+        # Helper to draw circle around a detected bubble rect
+        def draw_bubble_circle(rect, color, thickness=3, radius_offset=0):
+             bx, by, bw, bh = rect
+             center = (int(x + bx + bw/2), int(roi_y + by + bh/2))
+             # Increased base padding to ensure it's outside. 
+             # Bubbles can be up to ~40-50px (radius 20-25).
+             # Base radius = half_width + 5. 
+             radius = int(max(bw, bh) // 2) + 5 + radius_offset
+             cv2.circle(debug_img, center, radius, color, thickness)
+             
+        # Helper to draw circle around an EXPECTED option position
+        def draw_expected_circle(opt_char, color, thickness=3):
+             center = get_expected_center(q_num, opt_char)
+             if center:
+                 # Radius increased to 28 to ensure it surrounds the bubble
+                 radius = 28
+                 cv2.circle(debug_img, center, radius, color, thickness)
+
+        if detected_str == "N/A":
+            # EMPTY Case: Blue circle for correct option
+            for char in correct_opt:
+                # Can't use detected rect, must use expected
+                draw_expected_circle(char, BLUE)
+                
+        elif detected_str == correct_opt:
+            # CORRECT Case: Green circle around detected bubble(s)
+            for rect in detected_rects:
+                draw_bubble_circle(rect, GREEN)
+                
+        else:
+            # WRONG or MULTI Case
+            # Detected != Correct
             
-            ideal_offsets = [
-                -16.5 * px_scale, 5.5 * px_scale, 27.5 * px_scale, 49.5 * px_scale
-            ]
+            # 1. Draw RED circles around ALL detected bubbles
+            for rect in detected_rects:
+                draw_bubble_circle(rect, RED)
             
-            target_cx = col_center_x + ideal_offsets[opt_idx]
-            target_cy = min_y + (row_idx * row_step)
-            
-            cv2.circle(debug_img, (int(x + target_cx), int(roi_y + target_cy)), 10, (255, 0, 0), 2)
+            # 2. Draw BLUE circle around CORRECT option
+            for char in correct_opt:
+                # Check if this correct option IS one of the detected ones (e.g. Multi case)
+                if char in detected_opts:
+                    # Find the specific rect for this char
+                    # detected_list items are (opt, rect)
+                    found_rect = None
+                    for item_opt, item_rect in items:
+                        if item_opt == char:
+                            found_rect = item_rect
+                            break
+                    if found_rect:
+                        # Draw Blue larger (+7 offset on top of base +5)
+                        draw_bubble_circle(found_rect, BLUE, thickness=3, radius_offset=7)
+                else:
+                    # Not detected (Empty correct option), use expected position
+                    draw_expected_circle(char, BLUE)
 
     return detected_answers
 

@@ -640,6 +640,8 @@ def evaluate_advanced_omr(image_path, answer_key_path="answer_key.json"):
     with open("evaluation_report.json", "w") as f:
          json.dump(results, f, indent=2)
          
+    return results
+         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", required=True)
