@@ -1,8 +1,0 @@
-opencv-python-headless
-numpy
-imutils
-reportlab
-scipy
-pymupdf
-flask
-gunicorn

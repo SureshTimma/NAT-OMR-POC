@@ -1,0 +1,176 @@
+==========================================================================================
+                         OMR ANSWER COMPARISON REPORT
+==========================================================================================
+
+SCORE SUMMARY
+------------------------------------------------------------------------------------------
+
+Total Questions:        60
+Correct Bubbled:        17 ✓
+Wrong Bubbled:          43 ✗
+Overall Score:          28.33%
+
+==========================================================================================
+DETAILED QUESTION-BY-QUESTION COMPARISON
+==========================================================================================
+
+Q#    | Student Bubbled  | Status   | Correct Answer   | Section
+------------------------------------------------------------------------------------------
+Q1   | A                | CORRECT ✓ | A                | Psychometric
+Q2   | A                | WRONG ✗  | B                | Psychometric
+Q3   | A                | WRONG ✗  | C                | Psychometric
+Q4   | A                | WRONG ✗  | D                | Psychometric
+Q5   | A                | CORRECT ✓ | A                | Psychometric
+Q6   | A                | WRONG ✗  | B                | Psychometric
+Q7   | A                | WRONG ✗  | C                | Psychometric
+Q8   | A                | WRONG ✗  | D                | Psychometric
+Q9   | A                | CORRECT ✓ | A                | Psychometric
+Q10  | A                | WRONG ✗  | B                | Psychometric
+Q11  | A                | WRONG ✗  | C                | Psychometric
+Q12  | A                | WRONG ✗  | D                | Psychometric
+Q13  | A                | CORRECT ✓ | A                | Psychometric
+Q14  | A                | WRONG ✗  | B                | Psychometric
+Q15  | A                | WRONG ✗  | C                | Psychometric
+Q16  | A                | WRONG ✗  | D                | Psychometric
+Q17  | A                | CORRECT ✓ | A                | Psychometric
+Q18  | A                | WRONG ✗  | B                | Psychometric
+Q19  | A                | WRONG ✗  | C                | Psychometric
+Q20  | A                | WRONG ✗  | D                | Psychometric
+Q21  | A                | CORRECT ✓ | A                | Psychometric
+Q22  | A                | WRONG ✗  | B                | Psychometric
+Q23  | A                | WRONG ✗  | C                | Psychometric
+Q24  | A                | WRONG ✗  | D                | Psychometric
+Q25  | A                | CORRECT ✓ | A                | Psychometric
+Q26  | A                | CORRECT ✓ | A                | Aptitude
+Q27  | A                | WRONG ✗  | B                | Aptitude
+Q28  | A                | WRONG ✗  | C                | Aptitude
+Q29  | A                | WRONG ✗  | D                | Aptitude
+Q30  | A                | CORRECT ✓ | A                | Aptitude
+Q31  | A                | WRONG ✗  | B                | Aptitude
+Q32  | A                | WRONG ✗  | C                | Aptitude
+Q33  | A                | WRONG ✗  | D                | Aptitude
+Q34  | A                | CORRECT ✓ | A                | Aptitude
+Q35  | A                | WRONG ✗  | B                | Aptitude
+Q36  | A                | WRONG ✗  | C                | Aptitude
+Q37  | A                | WRONG ✗  | D                | Aptitude
+Q38  | A                | CORRECT ✓ | A                | Aptitude
+Q39  | A                | WRONG ✗  | B                | Aptitude
+Q40  | A                | WRONG ✗  | C                | Aptitude
+Q41  | A                | WRONG ✗  | D                | Aptitude
+Q42  | A                | CORRECT ✓ | A                | Aptitude
+Q43  | A                | WRONG ✗  | B                | Aptitude
+Q44  | A                | CORRECT ✓ | A                | Math
+Q45  | A                | WRONG ✗  | B                | Math
+Q46  | A                | WRONG ✗  | C                | Math
+Q47  | A                | WRONG ✗  | D                | Math
+Q48  | A                | CORRECT ✓ | A                | Math
+Q49  | A                | WRONG ✗  | B                | Math
+Q50  | A                | WRONG ✗  | C                | Math
+Q51  | A                | WRONG ✗  | D                | Math
+Q52  | A                | CORRECT ✓ | A                | Math
+Q53  | A                | WRONG ✗  | B                | Math
+Q54  | A                | WRONG ✗  | C                | Math
+Q55  | A                | WRONG ✗  | D                | Math
+Q56  | A                | CORRECT ✓ | A                | Math
+Q57  | A                | WRONG ✗  | B                | Math
+Q58  | A                | WRONG ✗  | C                | Math
+Q59  | A                | WRONG ✗  | D                | Math
+Q60  | A                | CORRECT ✓ | A                | Math
+
+==========================================================================================
+SECTION-WISE BREAKDOWN
+==========================================================================================
+
+Section 1 (Psychometric):
+  Correct Bubbled:  7/25
+  Wrong Bubbled:    18/25
+  Score:            28.0%
+
+Section 2 (Aptitude):
+  Correct Bubbled:  5/18
+  Wrong Bubbled:    13/18
+  Score:            27.8%
+
+Section 3 (Math):
+  Correct Bubbled:  5/17
+  Wrong Bubbled:    12/17
+  Score:            29.4%
+
+==========================================================================================
+CORRECTLY BUBBLED QUESTIONS (17 total)
+==========================================================================================
+
+Questions where student bubbled correctly:
+  Q1, Q5, Q9, Q13, Q17, Q21, Q25, Q26, Q30, Q34
+  Q38, Q42, Q44, Q48, Q52, Q56, Q60
+
+All these questions had answer 'A' in the answer key.
+
+==========================================================================================
+INCORRECTLY BUBBLED QUESTIONS (43 total)
+==========================================================================================
+
+Student bubbled 'A' but correct answer was:
+
+Answer 'B' (Student bubbled 'A' instead):
+  Q2, Q6, Q10, Q14, Q18, Q22, Q27, Q31, Q35, Q39
+  Q43, Q45, Q49, Q53, Q57
+  Total: 15 questions
+
+Answer 'C' (Student bubbled 'A' instead):
+  Q3, Q7, Q11, Q15, Q19, Q23, Q28, Q32, Q36, Q40
+  Q46, Q50, Q54, Q58
+  Total: 14 questions
+
+Answer 'D' (Student bubbled 'A' instead):
+  Q4, Q8, Q12, Q16, Q20, Q24, Q29, Q33, Q37, Q41
+  Q47, Q51, Q55, Q59
+  Total: 14 questions
+
+==========================================================================================
+PATTERN ANALYSIS
+==========================================================================================
+
+Student's Strategy:
+  The student marked ALL questions with answer 'A'
+
+Answer Key Pattern:
+  The answer key follows a repeating pattern: A, B, C, D
+  Distribution:
+    A: 17 questions ( 28.3%) ██████████████
+    B: 15 questions ( 25.0%) ████████████
+    C: 14 questions ( 23.3%) ███████████
+    D: 14 questions ( 23.3%) ███████████
+
+  This explains why marking all 'A' resulted in ~28% score.
+
+==========================================================================================
+VISUAL COMPARISON GRID
+==========================================================================================
+
+Legend:
+  ✓ = Correct (Student bubbled correctly)
+  ✗ = Wrong (Student should have bubbled different answer)
+
+Section 1 (Psychometric):
+Q 1:[✓][✗][✗][✗][✓]
+  Q 6:[✗][✗][✗][✓][✗]
+  Q11:[✗][✗][✓][✗][✗]
+  Q16:[✗][✓][✗][✗][✗]
+  Q21:[✓][✗][✗][✗][✓]
+
+Section 2 (Aptitude):
+Q26:[✓][✗][✗][✗][✓]
+  Q31:[✗][✗][✗][✓][✗]
+  Q36:[✗][✗][✓][✗][✗]
+  Q41:[✗][✓][✗]
+
+Section 3 (Math):
+Q44:[✓][✗][✗][✗][✓]
+  Q49:[✗][✗][✗][✓][✗]
+  Q54:[✗][✗][✓][✗][✗]
+  Q59:[✗][✓]
+
+==========================================================================================
+END OF COMPARISON REPORT
+==========================================================================================

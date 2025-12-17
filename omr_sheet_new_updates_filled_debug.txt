@@ -1,0 +1,132 @@
+================================================================================
+OMR EVALUATION DEBUG REPORT
+================================================================================
+
+Image: omr_sheet_new_updates_filled.jpg
+Total Questions: 60
+Correct: 17
+Incorrect: 43
+Score: 28.33%
+
+================================================================================
+DETAILED QUESTION-BY-QUESTION BREAKDOWN
+================================================================================
+
+Q 1: Student=A | Correct=A | [OK] CORRECT
+Q 2: Student=A | Correct=B | [X] INCORRECT
+Q 3: Student=A | Correct=C | [X] INCORRECT
+Q 4: Student=A | Correct=D | [X] INCORRECT
+Q 5: Student=A | Correct=A | [OK] CORRECT
+Q 6: Student=A | Correct=B | [X] INCORRECT
+Q 7: Student=A | Correct=C | [X] INCORRECT
+Q 8: Student=A | Correct=D | [X] INCORRECT
+Q 9: Student=A | Correct=A | [OK] CORRECT
+Q10: Student=A | Correct=B | [X] INCORRECT
+Q11: Student=A | Correct=C | [X] INCORRECT
+Q12: Student=A | Correct=D | [X] INCORRECT
+Q13: Student=A | Correct=A | [OK] CORRECT
+Q14: Student=A | Correct=B | [X] INCORRECT
+Q15: Student=A | Correct=C | [X] INCORRECT
+Q16: Student=A | Correct=D | [X] INCORRECT
+Q17: Student=A | Correct=A | [OK] CORRECT
+Q18: Student=A | Correct=B | [X] INCORRECT
+Q19: Student=A | Correct=C | [X] INCORRECT
+Q20: Student=A | Correct=D | [X] INCORRECT
+Q21: Student=A | Correct=A | [OK] CORRECT
+Q22: Student=A | Correct=B | [X] INCORRECT
+Q23: Student=A | Correct=C | [X] INCORRECT
+Q24: Student=A | Correct=D | [X] INCORRECT
+Q25: Student=A | Correct=A | [OK] CORRECT
+Q26: Student=A | Correct=A | [OK] CORRECT
+Q27: Student=A | Correct=B | [X] INCORRECT
+Q28: Student=A | Correct=C | [X] INCORRECT
+Q29: Student=A | Correct=D | [X] INCORRECT
+Q30: Student=A | Correct=A | [OK] CORRECT
+Q31: Student=A | Correct=B | [X] INCORRECT
+Q32: Student=A | Correct=C | [X] INCORRECT
+Q33: Student=A | Correct=D | [X] INCORRECT
+Q34: Student=A | Correct=A | [OK] CORRECT
+Q35: Student=A | Correct=B | [X] INCORRECT
+Q36: Student=A | Correct=C | [X] INCORRECT
+Q37: Student=A | Correct=D | [X] INCORRECT
+Q38: Student=A | Correct=A | [OK] CORRECT
+Q39: Student=A | Correct=B | [X] INCORRECT
+Q40: Student=A | Correct=C | [X] INCORRECT
+Q41: Student=A | Correct=D | [X] INCORRECT
+Q42: Student=A | Correct=A | [OK] CORRECT
+Q43: Student=A | Correct=B | [X] INCORRECT
+Q44: Student=A | Correct=A | [OK] CORRECT
+Q45: Student=A | Correct=B | [X] INCORRECT
+Q46: Student=A | Correct=C | [X] INCORRECT
+Q47: Student=A | Correct=D | [X] INCORRECT
+Q48: Student=A | Correct=A | [OK] CORRECT
+Q49: Student=A | Correct=B | [X] INCORRECT
+Q50: Student=A | Correct=C | [X] INCORRECT
+Q51: Student=A | Correct=D | [X] INCORRECT
+Q52: Student=A | Correct=A | [OK] CORRECT
+Q53: Student=A | Correct=B | [X] INCORRECT
+Q54: Student=A | Correct=C | [X] INCORRECT
+Q55: Student=A | Correct=D | [X] INCORRECT
+Q56: Student=A | Correct=A | [OK] CORRECT
+Q57: Student=A | Correct=B | [X] INCORRECT
+Q58: Student=A | Correct=C | [X] INCORRECT
+Q59: Student=A | Correct=D | [X] INCORRECT
+Q60: Student=A | Correct=A | [OK] CORRECT
+
+================================================================================
+SECTION SUMMARIES
+================================================================================
+
+Section 1 (Psychometric, Q1-25):  7/25 (28.0%)
+Section 2 (Aptitude, Q26-43):     5/18 (27.8%)
+Section 3 (Math, Q44-60):         5/17 (29.4%)
+
+================================================================================
+INCORRECT ANSWERS SUMMARY
+================================================================================
+
+Q 2: Marked A, should be B
+Q 3: Marked A, should be C
+Q 4: Marked A, should be D
+Q 6: Marked A, should be B
+Q 7: Marked A, should be C
+Q 8: Marked A, should be D
+Q10: Marked A, should be B
+Q11: Marked A, should be C
+Q12: Marked A, should be D
+Q14: Marked A, should be B
+Q15: Marked A, should be C
+Q16: Marked A, should be D
+Q18: Marked A, should be B
+Q19: Marked A, should be C
+Q20: Marked A, should be D
+Q22: Marked A, should be B
+Q23: Marked A, should be C
+Q24: Marked A, should be D
+Q27: Marked A, should be B
+Q28: Marked A, should be C
+Q29: Marked A, should be D
+Q31: Marked A, should be B
+Q32: Marked A, should be C
+Q33: Marked A, should be D
+Q35: Marked A, should be B
+Q36: Marked A, should be C
+Q37: Marked A, should be D
+Q39: Marked A, should be B
+Q40: Marked A, should be C
+Q41: Marked A, should be D
+Q43: Marked A, should be B
+Q45: Marked A, should be B
+Q46: Marked A, should be C
+Q47: Marked A, should be D
+Q49: Marked A, should be B
+Q50: Marked A, should be C
+Q51: Marked A, should be D
+Q53: Marked A, should be B
+Q54: Marked A, should be C
+Q55: Marked A, should be D
+Q57: Marked A, should be B
+Q58: Marked A, should be C
+Q59: Marked A, should be D
+
+================================================================================

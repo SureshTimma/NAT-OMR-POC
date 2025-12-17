@@ -1,0 +1,70 @@
+========================================
+EVALUATION REPORT
+========================================
+Detected Phone 1: ERR
+Detected Phone 2: ERR
+----------------------------------------
+Q1: Detected [BC] | Correct [A] -> WRONG
+Q2: Detected [CD] | Correct [B] -> WRONG
+Q3: Detected [BCD] | Correct [C] -> WRONG
+Q4: Detected [CD] | Correct [D] -> WRONG
+Q5: Detected [CD] | Correct [A] -> WRONG
+Q6: Detected [CD] | Correct [B] -> WRONG
+Q7: Detected [BCD] | Correct [C] -> WRONG
+Q8: Detected [BCD] | Correct [D] -> WRONG
+Q9: Detected [AB] | Correct [A] -> WRONG
+Q10: Detected [ABCD] | Correct [B] -> WRONG
+Q11: Detected [ABC] | Correct [C] -> WRONG
+Q12: Detected [ABCD] | Correct [D] -> WRONG
+Q13: Detected [ABD] | Correct [A] -> WRONG
+Q14: Detected [ABCD] | Correct [B] -> WRONG
+Q15: Detected [N/A] | Correct [C] -> WRONG
+Q16: Detected [B] | Correct [D] -> WRONG
+Q17: Detected [B] | Correct [A] -> WRONG
+Q18: Detected [BD] | Correct [B] -> WRONG
+Q19: Detected [AD] | Correct [C] -> WRONG
+Q20: Detected [BD] | Correct [D] -> WRONG
+Q21: Detected [D] | Correct [A] -> WRONG
+Q22: Detected [C] | Correct [B] -> WRONG
+Q23: Detected [A] | Correct [C] -> WRONG
+Q24: Detected [CD] | Correct [D] -> WRONG
+Q25: Detected [N/A] | Correct [A] -> WRONG
+Q26: Detected [A] | Correct [A] -> CORRECT
+Q27: Detected [ACD] | Correct [B] -> WRONG
+Q28: Detected [D] | Correct [C] -> WRONG
+Q29: Detected [D] | Correct [D] -> CORRECT
+Q30: Detected [C] | Correct [A] -> WRONG
+Q31: Detected [N/A] | Correct [B] -> WRONG
+Q32: Detected [ABCD] | Correct [C] -> WRONG
+Q33: Detected [ABCD] | Correct [D] -> WRONG
+Q34: Detected [ABD] | Correct [A] -> WRONG
+Q35: Detected [BCD] | Correct [B] -> WRONG
+Q36: Detected [BD] | Correct [C] -> WRONG
+Q37: Detected [ABCD] | Correct [D] -> WRONG
+Q38: Detected [ABCD] | Correct [A] -> WRONG
+Q39: Detected [ABC] | Correct [B] -> WRONG
+Q40: Detected [ABCD] | Correct [C] -> WRONG
+Q41: Detected [ABC] | Correct [D] -> WRONG
+Q42: Detected [ABCD] | Correct [A] -> WRONG
+Q43: Detected [BCD] | Correct [B] -> WRONG
+Q44: Detected [ABCD] | Correct [A] -> WRONG
+Q45: Detected [AB] | Correct [B] -> WRONG
+Q46: Detected [N/A] | Correct [C] -> WRONG
+Q47: Detected [ABCD] | Correct [D] -> WRONG
+Q48: Detected [ABCD] | Correct [A] -> WRONG
+Q49: Detected [ABCD] | Correct [B] -> WRONG
+Q50: Detected [ABCD] | Correct [C] -> WRONG
+Q51: Detected [ABCD] | Correct [D] -> WRONG
+Q52: Detected [BCD] | Correct [A] -> WRONG
+Q53: Detected [ABCD] | Correct [B] -> WRONG
+Q54: Detected [BCD] | Correct [C] -> WRONG
+Q55: Detected [ABCD] | Correct [D] -> WRONG
+Q56: Detected [ABCD] | Correct [A] -> WRONG
+Q57: Detected [ABCD] | Correct [B] -> WRONG
+Q58: Detected [BCD] | Correct [C] -> WRONG
+Q59: Detected [BCD] | Correct [D] -> WRONG
+Q60: Detected [ABCD] | Correct [A] -> WRONG
+----------------------------------------
+Total Correct: 2/60
+Accuracy: 3.33%
+========================================

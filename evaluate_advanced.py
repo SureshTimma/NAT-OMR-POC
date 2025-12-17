@@ -133,22 +133,22 @@ def detect_red_boxes(image):
             # Aspect ratio check can help
             ar = w / float(h)
             
-            print(f"DEBUG: Found box. Area={area}, x={x}, y={y}, w={w}, h={h}, ar={ar:.2f}")
+            # print(f"DEBUG: Found box. Area={area}, x={x}, y={y}, w={w}, h={h}, ar={ar:.2f}")
 
             # Header exclusion: If Y is very high (top of page), ignore
             # With new layout, header is top 25-30%. 
             # Phone/Answers are at bottom.
             if y < h_img * 0.25:
-                print("  -> Skipped as HEADER (y < 25%)")
+                # print("  -> Skipped as HEADER (y < 25%)")
                 continue # Skip header elements
                 
             # Classify Left vs Right
             center_bx = x + w // 2
             if center_bx < mid_x:
-                print("  -> Classified as PHONE (Left)")
+                # print("  -> Classified as PHONE (Left)")
                 phone_boxes.append((x, y, w, h, c))
             else:
-                print("  -> Classified as ANSWER (Right)")
+                # print("  -> Classified as ANSWER (Right)")
                 answer_boxes.append((x, y, w, h, c))
             
     # Sort top-to-bottom
@@ -331,9 +331,9 @@ def process_phone_box(roi, debug_name=None):
 
 def process_section_box(roi, config, debug_name=None):
     """Reuse existing logic to process answer sections"""
-    # Debug: Save ROI
+    # Debug: Save ROI (Step 1: Raw)
     if debug_name:
-        save_debug_image(roi, f"{debug_name}_orig")
+        save_debug_image(roi, f"{debug_name}_1_raw")
 
     # This is a simplified version of the logic from evaluate.py
     # Re-implementing essentially the same steps adapted for the ROI
@@ -341,9 +341,19 @@ def process_section_box(roi, config, debug_name=None):
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
     
+    # Debug: Save Threshold (Step 2: Thresh)
+    if debug_name:
+        save_debug_image(thresh, f"{debug_name}_2_thresh")
+
     cnts = cv2.findContours(thresh.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     
+    # Debug: Save ALL Contours (Step 3: All Contours)
+    if debug_name:
+        debug_contours_all = roi.copy()
+        cv2.drawContours(debug_contours_all, cnts, -1, (0, 0, 255), 1) # Red for raw contours
+        save_debug_image(debug_contours_all, f"{debug_name}_3_contours_all")
+
     h, w = roi.shape[:2]
     bubbles = []
     
@@ -354,6 +364,13 @@ def process_section_box(roi, config, debug_name=None):
         if 0.8 <= ar <= 1.2 and w*0.01 < bw < w*0.05:
             bubbles.append((x, y, bw, bh, c))
             
+    # Debug: Save Filtered Bubbles (Step 4: Filtered)
+    if debug_name:
+        debug_bubbles_filtered = roi.copy()
+        for b in bubbles:
+             cv2.drawContours(debug_bubbles_filtered, [b[4]], -1, (0, 255, 0), 1) # Green for valid bubbles
+        save_debug_image(debug_bubbles_filtered, f"{debug_name}_4_bubbles_filtered")
+
     # Sort bubbles into columns
     bubbles = sorted(bubbles, key=lambda b: b[0])
     num_cols = config["columns"]
@@ -380,7 +397,10 @@ def process_section_box(roi, config, debug_name=None):
     if debug_name:
         debug_img = roi.copy()
         
-        for col_bubbles in cols:
+        # Step 5: Visual Grid / Logic
+        debug_grid = roi.copy()
+        
+        for col_idx, col_bubbles in enumerate(cols):
             # Sort rows
             col_bubbles = sorted(col_bubbles, key=lambda b: b[1])
             
@@ -424,14 +444,17 @@ def process_section_box(roi, config, debug_name=None):
                     masked = cv2.bitwise_and(thresh, thresh, mask=mask)
                     total = cv2.countNonZero(masked)
                     
-                    if total > (bw*bh)*0.5 and idx == best_idx:
+                    # Visual check logic
+                    is_filled = total > (bw*bh)*0.5
+                    
+                    if is_filled and idx == best_idx:
                         color = (0, 255, 0) # Green for filled
                         thickness = 2
                     
                     cv2.drawContours(debug_img, [bc], -1, color, thickness)
                     # cv2.rectangle(debug_img, (bx, by), (bx+bw, by+bh), color, thickness)
 
-        save_debug_image(debug_img, f"{debug_name}_visual")
+        save_debug_image(debug_img, f"{debug_name}_5_visual_final")
 
     return cols
 
@@ -503,6 +526,12 @@ def evaluate_advanced_omr(image_path, answer_key_path="answer_key.json"):
         if i+1 not in ANSWER_SECTIONS: break
         
         sec_id = i + 1
+        
+        # DEBUG: ONLY PROCESS SECTION 1
+        if sec_id != 1:
+            print(f"Skipping Section {sec_id} for debug focus.")
+            continue
+            
         config = ANSWER_SECTIONS[sec_id]
         
         x, y, bw, bh, c = box
