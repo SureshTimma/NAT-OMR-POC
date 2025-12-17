@@ -166,7 +166,10 @@ def process_phone_box(gray, box, debug_img, name):
              
              if px_count > 800:
                 bubbles.append((bx, by, bw, bh))
-                cv2.rectangle(debug_img, (x+bx, roi_y+by), (x+bx+bw, roi_y+by+bh), (255, 0, 0), 1)
+                # VISUALIZATION CHANGE: Bright Yellow (Fluorescent) -> BGR (0, 255, 255)
+                center = (int(x + bx + bw/2), int(roi_y + by + bh/2))
+                radius = int(max(bw, bh) // 2) + 5
+                cv2.circle(debug_img, center, radius, (0, 255, 255), 3)
 
     roi_h, roi_w = roi.shape[:2]
     
